@@ -711,7 +711,7 @@
         });
 
         $(".delete-round").click(function() { // click clear seat  
-            var round_id = $(this).attr("data-round_id");
+            var round_id = $(this).data("round_id");
             var message = `ยืนยันการลบ วัน-เวลาการทดสอบนี้`;
 
             if (confirm(message)) {

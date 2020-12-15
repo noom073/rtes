@@ -45,6 +45,19 @@ class Manage_round_model extends CI_Model
         return $query;
     }
 
+    public function check_dup_round_before_update($array)
+    {
+        $this->mysql->not_like('row_id', $array['round_id']);
+        $this->mysql->where('round', $array['round']);
+        $this->mysql->where('room_id', $array['room_id']);
+        $this->mysql->where('date_test', $array['date']);
+        $this->mysql->where('time_test', $array['time']);
+
+        $query = $this->mysql->get('ecl2_round');
+
+        return $query;
+    }
+
     public function insert_round($array)
     {
         $field['round']         = $array['round'];
@@ -108,17 +121,26 @@ class Manage_round_model extends CI_Model
     public function update_round($array)
     {
         $field['date_test']     = $array['date'];
-        $field['time_test']     = "{$array['hour']}:{$array['minute']}";
+        $field['time_test']     = "{$array['hour']}:{$array['minute']}:00";
         $field['room_id']       = $array['room'];
         $field['round']         = $array['round'];
         $field['total_seat']    = $array['totalSeat'];
         $field['time_update']   = date("Y-m-d H:i:s");
         $field['user']          = "{$this->session->username}#{$this->input->ip_address()}";
 
-        $this->mysql->where('row_id', $array['round_id']);
-        $query = $this->mysql->update('ecl2_round', $field);
-
-        return $query;
+        $chkData['round'] = $field['round'];
+        $chkData['round_id'] = $field['round_id'];
+        $chkData['room_id'] = $field['room_id'];
+        $chkData['date'] = $field['date_test'];
+        $chkData['time'] = $field['time_test'];
+        $checkDuplicatRound = $this->check_dup_round_before_update($chkData)->num_rows();
+        if ($checkDuplicatRound == 0) {
+            $this->mysql->where('row_id', $array['round_id']);
+            $query = $this->mysql->update('ecl2_round', $field);
+            return $query;
+        } else {
+            return false;
+        }
     }
 
     public function get_registered_data($id)
