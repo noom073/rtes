@@ -1,0 +1,757 @@
+<div class="container-fluid h-full">  
+    <div class="main container-fluid">
+        <div class="">
+            <div class="bg-white m-2 p-2">
+                <div class="h2">วัน-เวลา การทดสอบ</div>
+                <div class="">
+                    <button class="btn btn-sm btn-primary" data-toggle="modal" data-target="#create-roundModal">+ เพิ่มวัน-เวลา การทดสอบ</button>
+                </div>
+            </div>
+
+            <div class="m-2 p-2">
+                <div class="table-responsive">
+                    <table id="ecl-table" class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th class="text-center">ลำดับ</th>
+                                <th class="text-center">ชื่อห้องสอบ</th>
+                                <th class="text-center">รอบที่</th>
+                                <th class="text-center">วัน เวลาทดสอบ</th>
+                                <th class="text-center">จำนวนที่นั่ง</th>
+                                <th class="text-center">จำนวนผู้ลงทะเบียน</th>
+                                <th class="text-center">สถานะ</th>
+                                <th class="text-center">วันที่สร้าง</th>
+                                <th class="text-center">วันที่แก้ไข</th>
+                                <th class="text-center">แก้ไข</th>
+                            </tr>
+                        </thead>                        
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="all-modal">
+
+        <!-- Create round Modal -->
+        <div class="modal fade" id="create-roundModal" tabindex="-1" role="dialog" aria-labelledby="create-roundModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="create-roundModalLabel">สร้างวัน-เวลา การทดสอบ</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="create-round-form">
+                            <div class="form-row">
+                                <div class="form-group col-md-4">
+                                    <label>ประจำปี</label>
+                                    <select class="form-control" name="year">
+                                        <option value="<?= $thisYear ?>"><?= $thisYear ?></option>
+                                        <option value="<?= $thisYear+1 ?>"><?= $thisYear+1 ?></option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-4">
+                                    <label>รอบที่</label>
+                                    <span class="text-danger small">*รอบใหญ่</span>
+                                    <input type="text" class="form-control" name="round" maxlength="1" required>
+                                </div>
+                            </div>
+
+                            
+                            <div class="form-group">
+                                <label>วันที่</label>
+                                <?php 
+                                    $year = date('Y')+543 ;
+                                    $defaultDate = date('d') ."-". date('m') ."-". $year ;
+                                ?>
+                                <input type="text" class="form-control date bg-white col-md-4" name="date" maxlength="255" value="<?= $defaultDate ?>" readonly required>
+                            </div>
+                            <div class="form-group">
+                                <div class="form-row">
+                                    <div class="form-group col-md-2">
+                                        <label>ชั่วโมง</label>
+                                        <select class="form-control" name="hour" required>
+                                            <option value="08">08</option>
+                                            <option value="09">09</option>
+                                            <option value="10">10</option>
+                                            <option value="11">11</option>
+                                            <option value="12">12</option>
+                                            <option value="13">13</option>
+                                            <option value="14">14</option>
+                                            <option value="15">15</option>
+                                            <option value="16">16</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group col-md-2">
+                                        <label>นาที</label>
+                                        <select class="form-control" name="minute" required>
+                                            <option value="00">00</option>
+                                            <option value="10">10</option>
+                                            <option value="20">20</option>
+                                            <option value="30">30</option>
+                                            <option value="40">40</option>
+                                            <option value="50">50</option>
+                                        </select>                                       
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>สถานที่</label> 
+                                <span id="select-room-loading">loading ...</span>                               
+                                <select id="list-select-room" class="form-control" name="room" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label>จำนวนที่นั่งสูงสุด</label>
+                                <input type="number" class="form-control col-md-4" name="amount_seat" min="1" max="500" value="1" required>
+                                <small class="text-danger">* ไม่สามารถเพิ่มจำนวนที่นั่งในครั้งต่อไป กรุณาใส่จำนวนที่นั่งสูงสุดของห้อง</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">ตกลง</button>
+                        </form>
+                        <div id="rs"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End create round Modal -->
+
+        <!-- Edit round Modal -->
+        <div class="modal fade" id="edit-round-Modal" tabindex="-1" role="dialog" aria-labelledby="edit-roundModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="edit-roundModalLabel">แก้ไข วัน-เวลา การทดสอบ</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+                        <form id="edit-round-form">
+
+                            <div class="form-group">
+                                <label>รอบที่</label>
+                                <small class="text-danger">**ตัวอย่าง: 2562/1</small>
+                                <input type="text" class="form-control col-md-4" name="round" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>วันที่</label>                                
+                                <input type="text" class="form-control date bg-white col-md-4" name="date" maxlength="255" value="" readonly required>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group col-md-2">
+                                    <label>ชั่วโมง</label>
+                                    <input type="number" class="form-control" name="hour" min="8" max="18" value="7" required>
+                                </div>
+                                
+                                <div class="form-group col-md-2">
+                                    <label>นาที</label>
+                                    <input type="number" class="form-control" name="minute" min="0" max="59" value="0" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>สถานที่</label>                            
+                                <select id="list-select-edit" class="form-control" name="room" required></select>
+                            </div>
+                            <input type="hidden" name="round_id">
+                            <button type="submit" class="btn btn-primary">ตกลง</button>
+                            <button type="button" class="btn btn-danger delete-round">- ลบ</button>
+                        </form>
+
+                        <div id="rs-edit-round"></div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Edit round Modal -->
+
+        <!-- View round detail Modal -->
+        <div class="modal fade" id="round-detail-Modal" tabindex="-1" role="dialog" aria-labelledby="round-detail-ModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="round-detail-ModalLabel">รายละเอียด ผู้ลงทะเบียน</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+                        <form id="round-detail-form"> 
+                            <div id="round-detail-loading"></div>
+                            <div id="round-detail-heading" class="h5"></div>                            
+
+                            <table id="member-table" class="table table-striped table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">#</th>
+                                        <th>ที่นั่ง</th>
+                                        <th>ชื่อ นามสกุล</th>
+                                        <th>หน่วย</th>
+                                        <th>เบอร์โทร</th>
+                                        <th>ลงทะเบียนเมื่อ</th>
+                                        <th>ยืนยันแล้ว</th>
+                                        <th>Active</th>
+                                        <th>ห้อง</th>
+                                    </tr>
+                                </thead>
+                            </table>                       
+                            <button type="button" class="btn btn-primary float-right m-1 close-seat submit-detail">ปิดที่นั่ง</button>
+                            <button type="button" class="btn btn-primary float-right m-1 open-seat submit-detail">เปิดที่นั่ง</button>
+                            <button type="button" class="btn btn-primary float-right m-1 clear-seat submit-detail">ลบผู้ลงทะเบียน</button>
+                            <div id="rs-round-detail-form"></div>
+                        </form>
+
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End View round detail Modal -->
+
+    </div>
+</div>
+
+<link rel="stylesheet" href="<?= base_url('assets/bootstrap/css/bootstrap.min.css') ?>">
+<link rel="stylesheet" href="<?= base_url('assets/css/my-css.css') ?>">
+<script src="<?= base_url('assets/jquery/jquery.min.js') ?>"></script>
+<script src="<?= base_url('assets/bootstrap/js/bootstrap.js') ?>"></script>
+<script src="<?= base_url('assets/popper/popper.min.js') ?>"></script>
+
+<script src="<?= base_url('assets/my-js/function.js') ?>"></script>
+
+<!-- dataTable -->
+<link rel="stylesheet" type="text/css" href="<?= base_url('assets/dataTable/datatables.min.css') ?>"/> 
+<script type="text/javascript" src="<?= base_url('assets/dataTable/datatables.min.js') ?>"></script>
+<!-- End dataTable -->
+
+<!-- datepicker -->
+<link rel="stylesheet" type="text/css" href="<?= base_url('assets/datepicker/css/datepicker.css') ?>"/> 
+<script type="text/javascript" src="<?= base_url('assets/datepicker/js/date-func.js') ?>"></script>
+<script type="text/javascript" src="<?= base_url('assets/datepicker/js/datepicker.js') ?>"></script>
+<!-- End datepicker -->
+
+<script>
+    $(document).ready(function() {
+
+        $(".nav-item").removeClass('active');
+        $("#admin-manage-round.nav-item").addClass('active');
+
+        function generate_datatable() {
+            $("#ecl-table").DataTable({
+                destroy: true,
+                ajax: {
+                    url: "<?= site_url('manage_round/ajax_list_rounds') ?>",
+                    dataSrc: ""
+                },
+                columns: [
+                    { data: null,
+                        className: "text-center",
+                        render: function(data, type, row, meta) {
+                            return meta.row+1;
+                        }
+                    },
+                    { data: 'room_name',
+                        render: function (data, type, row, meta) {                           
+                            return `<span class="room-name">${data}</span>`;
+                        }   
+                    },
+                    { data: 'round',
+                        className: "text-center"                    
+                    },
+                    { data: null,
+                        className: "text-center",
+                        render: function (data, type, row, meta) {
+                            var year    = parseInt( row.date_test.substring(0,4) ) +543;
+                            var month   = toThaiDate(row.date_test.substring(5,7));
+                            var date    = `${row.date_test.substring(8)} ${month} ${year}`;
+                            var time    = `${row.time_test}:00`;
+                            return `<span class="datetime-test">${date} ${time} น.</span>`;
+                        }                    
+                    },
+                    { data: 'total',
+                        className: "text-center"
+                    },
+                    { data: 'member',
+                        className: "text-center",
+                        render: function (data, type, row, meta) {
+                            var amount = 0;
+                            if (row.idp != '') {
+                                amount = row.member;
+                            }
+
+                            return amount;
+                        }
+                    },
+                    { data: 'active',
+                        className: "text-center",
+                        render: function(data, type, row, meta) {
+                            var status = (data == 'y') ? `<span class="text-success">เปิดลงทะเบียน</span>` : `<span class="text-danger">ปิดลงทะเบียน</span>`;
+                            return status;
+                        }
+                    },
+                    { data: 'time_create',
+                        className: "text-center" 
+                    },
+                    { data: 'time_update',
+                        className: "text-center" 
+                    },
+                    { data: null,
+                        render: function (data, type, row, meta) {
+                            var detail = `<button class="btn btn-sm btn-primary detail-round"`+
+                                `data-round_id='${row.enc_id}'`+
+                                `>รายละเอียด</button>`;
+
+                            if (row.member == 0) {   
+                                var year = parseInt( row.date_test.substring(0,4) ) +543;
+                                var date = `${row.date_test.substring(8)}-${row.date_test.substring(5,7)}-${year}`;
+                                var hour = `${row.time_test.substring(0,2)}`;
+                                var minute = `${row.time_test.substring(3)}`;
+                                var room_id = `${row.room_id}`;
+
+                                var button = `<button class="btn btn-sm btn-primary edit-round"`+
+                                    `data-room='${row.room_name}'`+
+                                    `data-round_id='${row.enc_id}'`+
+                                    `data-round='${row.round}'`+
+                                    `data-date='${date}'`+
+                                    `data-hour='${hour}'`+
+                                    `data-minute='${minute}'`+
+                                    `data-active='${row.active}'`+
+                                    `>แก้ไข</button>`;                                   
+                            } else {
+                                button = `<a class="btn btn-sm btn-light" href="<?= site_url('manage_round/generate_excel/') ?>${row.enc_id}" > มีผู้ลงทะเบียนแล้ว </a>`;
+                            }
+
+                            if (row.active == 'y') {
+                                var button2 = `<button class="btn btn-sm btn-danger disable-round" data-round_id="${row.enc_id}"> ปิดลงทะเบียน </button>`;
+                            } else {
+                                var button2 = `<button class="btn btn-sm btn-success enable-round" data-round_id="${row.enc_id}"> เปิดลงทะเบียน </button>`;
+                            }
+
+                            return `${detail} ${button2} ${button}`;
+                        }
+                    }
+                ]
+            });
+        }
+
+        generate_datatable();
+
+        $("#create-round-form").submit(function() { // submit to create round
+            $("#rs").html(`กำลังโหลดข้อมูล... <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>`);
+            var formData = $(this).serialize();
+            // console.log(formData);
+            $.ajax({
+                url: "<?= site_url('manage_round/ajax_create_round') ?>",
+                data: formData,
+                type: "POST",
+                dataType: "json",
+                success: function(data) {
+                    // console.log(data);
+                    if (data.status) {
+                        $("#rs").html('');
+                        $("#rs").attr('class', 'alert alert-success');
+                        $("#rs").html(data.text);
+
+                        generate_datatable();
+                    } else {
+                        $("#rs").html('');
+                        $("#rs").attr('class', 'alert alert-danger');
+                        $("#rs").html(`!Error ${data.text}`);
+                    }
+                },
+                error: function(jhx, status, error) {
+                    console.log(`${jhx}, ${status}, ${error}`);
+                }
+            });
+
+            return false;
+        });
+
+        $(document).on("click", ".edit-round", function() { // insert data in modal when click edit round 
+            var room_name   = $(this).attr("data-room");
+            var date        = $(this).attr("data-date");
+            var hour        = $(this).attr("data-hour");
+            var minute      = $(this).attr("data-minute");
+            var round_id    = $(this).attr("data-round_id");
+            var round       = $(this).attr("data-round");
+            var active      = $(this).attr("data-active");
+            console.log(minute);
+
+            // $("form#edit-round-form").find("input[name='room']").val(room_name);
+            $("form#edit-round-form").find("input[name='date']").val(date);
+            $("form#edit-round-form").find("input[name='hour']").val(hour);
+            $("form#edit-round-form").find("input[name='minute']").val(minute);
+            $("form#edit-round-form").find("input[name='round_id']").val(round_id);
+            $("form#edit-round-form").find("input[name='round']").val(round);
+            $(".delete-round").attr({"data-round_id":round_id});
+
+            $("#list-select-edit > option").each(function() {
+                var name = $(this).text();
+
+                if (name === room_name) {
+                    $(this).attr({"selected": true});
+                } else {
+                    $(this).attr({"selected": false});
+                }
+            });
+
+            $("#round_active > option").each(function() {
+                var name = $(this).val();
+
+                if (name === active) {
+                    $(this).attr({"selected": true});
+                } else {
+                    $(this).attr({"selected": false});
+                }
+            });
+            
+            $("#rs-edit-room").html('');
+            $("#rs-edit-room").attr('class', '');
+
+            $("#edit-round-Modal").modal();
+        });
+
+        $(function() { // list room in modal create round
+            $.ajax({
+                url: "<?= site_url('manage_round/ajax_list_room') ?>",
+                dataType: "json",
+                success: function(data) {
+                    var option = '';
+                    data.forEach(element => {
+                        option += `<option value="${element.enc_id}">${element.room_name}</option>`
+                    });
+                    $("#select-room-loading").html('');
+                    $("#list-select-room").html(option);
+                    $("#list-select-edit").html(option);
+                },
+                error: function(jhx, status, error) {
+                    console.log(`${jhx}, ${status}, ${error}`);
+                }
+            });
+        });
+
+        $("#edit-round-form").submit(function() { // submit to edit round           
+            var formData = $(this).serialize();
+            console.log(formData);
+            $.ajax({
+                url: "<?= site_url('manage_round/ajax_update_round') ?>",
+                data: formData,
+                type: "POST",
+                dataType: "json",
+                success: function(data) {
+                    console.log(data);
+                    if (data.status) {
+                        $("#rs-edit-round").html('');
+                        $("#rs-edit-round").attr('class', 'alert alert-success');
+                        $("#rs-edit-round").html(data.text);
+
+                        generate_datatable();
+                    } else {
+                        $("#rs-edit-round").html('');
+                        $("#rs-edit-round").attr('class', 'alert alert-danger');
+                        $("#rs-edit-round").html(`! ${data.text}`);
+                    }
+                },
+                error: function(jhx, status, error) {
+                    console.log(`${jhx}, ${status}, ${error}`);
+                }
+            });
+
+            return false;
+        });
+
+        $(document).on("click", ".detail-round", function() { // generate detail modal
+            var room_name = $(this).parent('td').siblings('td').children('span.room-name').text();
+            var datetime_test = $(this).parent('td').siblings('td').children('span.datetime-test').text();
+            var round_id = $(this).attr("data-round_id");
+            $("#round-detail-heading").html(`${datetime_test} ${room_name}`);
+            $(".submit-detail").attr({"data-round_id": round_id});
+            generate_detail(round_id);
+
+            $("#round-detail-Modal").modal();
+        });
+
+        // function generate_detail(round_id) {
+        //     $("#detail-table").html('');
+        //     $("#round-detail-loading").html(`กำลังโหลด...`+
+        //         `<div class="spinner-border text-primary" role="status">`+
+        //             `<span class="sr-only">Loading...</span>`+
+        //         `</div>`);
+
+        //     // var round_id = $(this).attr("data-round_id");
+        //     $.ajax({
+        //         url: "<?= site_url('manage_round/ajax_get_registered_data') ?>",
+        //         data: {round: round_id},
+        //         type: "POST",
+        //         dataType: "json",
+        //         success: function(data) {
+        //             // console.log(data);
+        //             var tr  = '';
+        //             var row = 1;
+        //             data.forEach(element => {
+
+        //                 var confirm = (element.confirm == 'y') ? `<span class="text-success">ยืนยันแล้ว</span>` : `<span class="text-danger">ยังไม่ได้ยืนยัน</span>` ;
+        //                 var active  = (element.active == 'y') ? `<span class="text-success">ที่นั่งเปิด</span>` : `<span class="text-danger">ที่นั่งปิด</span>` ;
+        //                 var name        = (element.name != null) ? element.name : `-` ;
+        //                 var unit_name   = (element.unit_name != null) ? element.unit_name : `-` ;
+        //                 var tel_number  = (element.tel_number != null) ? element.tel_number : `-` ;
+        //                 var time_user_register    = (element.time_user_register != null) ? element.time_user_register : `-` ;
+        //                 tr += `<tr>`+
+        //                     `<td class="text-center">`+
+        //                         `<div class="form-check">
+        //                             <input class="form-check-input position-static" type="checkbox" style="width:20px;height:20px;" name="seat[]" value="${element.enc_id}">
+        //                         </div>`+
+        //                     `</td>`+
+        //                     `<td class="text-center">${element.seat_number}</td>`+
+        //                     `<td>${name}</td>`+
+        //                     `<td>${unit_name}</td>`+
+        //                     `<td>${tel_number}</td>`+
+        //                     `<td>${time_user_register}</td>`+
+        //                     `<td>${confirm}</td>`+
+        //                     `<td>${active}</td>`+
+        //                     `<td>${element.room_name}</td>`+
+        //                     `</tr>`;
+        //                 row++;
+        //             });
+                    
+        //             $("#detail-table").html(tr);
+        //             $("#member-table").DataTable();
+        //             $("#round-detail-loading").html('');
+        //         },
+        //         error: function(jhx, status, error) {
+        //             console.log(`${jhx}, ${status}, ${error}`);
+        //         }
+        //     });            
+        // }
+
+        function generate_detail(round_id) {
+            $("#member-table").DataTable({
+                destroy: true,
+                stateSave: true,
+                ajax: {
+                    url: "<?= site_url('manage_round/ajax_get_registered_data') ?>",
+                    data: {round: round_id},
+                    type: "POST",
+                    dataSrc: ""
+                },
+                columns: [
+                    { data: 'enc_id',
+                        className: "text-center",
+                        render: function(data, type, row, meta) {
+                            var checkbox = `<div class="form-check">`+
+                                `<input class="form-check-input position-static" type="checkbox" style="width:20px;height:20px;" name="seat[]" value="${data}">`+
+                            `</div>`;
+
+                            return checkbox;
+                        }
+                    },
+                    { data: 'seat_number'
+                    },
+                    { data: 'name',
+                        className: "text-center"                    
+                    },
+                    { data: 'unit_name',
+                        className: "text-center"
+                    },
+                    { data: 'tel_number',
+                        className: "text-center"
+                    },
+                    { data: 'time_user_register',
+                        className: "text-center"
+                    },
+                    { data: 'confirm',
+                        className: "text-center",
+                        render: function(data, type, row, meta) {
+                            var confirm = (data == 'y') ? `<span class="text-success">ยืนยันแล้ว</span>` : `<span class="text-danger">ยังไม่ได้ยืนยัน</span>` ;
+
+                            return confirm;
+                        }
+                    },
+                    { data: 'active',
+                        className: "text-center",
+                        render: function(data, type, row, meta) {
+                            var active  = (data == 'y') ? `<span class="text-success">ที่นั่งเปิด</span>` : `<span class="text-danger">ที่นั่งปิด</span>` ;
+
+                            return active;
+                        } 
+                    },
+                    { data: 'room_name',
+                        className: "text-center" 
+                    }                    
+                ]
+
+            });
+        }
+
+        $(document).on("click", ".close-seat", function() { // click close seat 
+            $("#round-detail-loading").html(`กำลังโหลด...`+
+                `<div class="spinner-border text-primary" role="status">`+
+                    `<span class="sr-only">Loading...</span>`+
+                `</div>`);
+
+            var formData = $(this).parent("#round-detail-form").serialize();
+            var round_id = $(this).attr("data-round_id");
+            // console.log(formData);
+
+            $.ajax({
+                url: "<?= site_url('manage_round/ajax_close_seat') ?>",
+                data: formData,
+                type: "POST",
+                dataType: "json",
+                success: function(data) {
+                    generate_detail(round_id);
+                    generate_datatable();
+                    $("#round-detail-loading").html('');
+                },
+                error: function(jhx, status, error) {
+                    console.log(`${jhx}, ${status}, ${error}`);
+                }
+            });
+        });
+
+        $(document).on("click", ".open-seat", function() { // click open seat 
+            $("#round-detail-loading").html(`กำลังโหลด...`+
+                `<div class="spinner-border text-primary" role="status">`+
+                    `<span class="sr-only">Loading...</span>`+
+                `</div>`);
+                
+            var formData = $(this).parent("#round-detail-form").serialize();
+            var round_id = $(this).attr("data-round_id");
+            // console.log(formData);
+
+            $.ajax({
+                url: "<?= site_url('manage_round/ajax_open_seat') ?>",
+                data: formData,
+                type: "POST",
+                dataType: "json",
+                success: function(data) {
+                    generate_detail(round_id);
+                    generate_datatable();
+                    $("#round-detail-loading").html('');
+                },
+                error: function(jhx, status, error) {
+                    console.log(`${jhx}, ${status}, ${error}`);
+                }
+            });
+        });
+
+        $(document).on("click", ".clear-seat", function() { // click clear seat 
+            $("#round-detail-loading").html(`กำลังโหลด...`+
+                `<div class="spinner-border text-primary" role="status">`+
+                    `<span class="sr-only">Loading...</span>`+
+                `</div>`);
+                
+            var message = `ยืนยันการลบ ผู้ลงทะเบียน`;
+            if ( confirm(message) ) {
+                var formData = $(this).parent("#round-detail-form").serialize();
+                var round_id = $(this).attr("data-round_id");
+
+                $.ajax({
+                    url: "<?= site_url('manage_round/ajax_clear_seat') ?>",
+                    data: formData,
+                    type: "POST",
+                    dataType: "json",
+                    success: function(data) {
+                        generate_detail(round_id);
+                        generate_datatable();
+                        $("#round-detail-loading").html('');
+                    },
+                    error: function(jhx, status, error) {
+                        console.log(`${jhx}, ${status}, ${error}`);
+                    }
+                });
+                
+                return true;
+            } else {
+                return false;
+            }
+        });
+
+        $(document).on("click", ".disable-round", function() { // click clear seat  
+            var round_id = $(this).attr("data-round_id");
+
+            $.ajax({
+                url: "<?= site_url('manage_round/ajax_disable_round') ?>",
+                data: {round_id: round_id},
+                type: "POST",
+                dataType: "json",
+                success: function(data) {
+                    generate_datatable();
+                },
+                error: function(jhx, status, error) {
+                    console.log(`${jhx}, ${status}, ${error}`);
+                }
+            });
+        });
+
+        $(document).on("click", ".enable-round", function() { // click clear seat  
+            var round_id = $(this).attr("data-round_id");
+
+            $.ajax({
+                url: "<?= site_url('manage_round/ajax_enable_round') ?>",
+                data: {round_id: round_id},
+                type: "POST",
+                dataType: "json",
+                success: function(data) {
+                    generate_datatable();
+                },
+                error: function(jhx, status, error) {
+                    console.log(`${jhx}, ${status}, ${error}`);
+                }
+            });
+        });
+
+        $(".delete-round").click(function() { // click clear seat  
+            var round_id = $(this).attr("data-round_id");
+            var message = `ยืนยันการลบ วัน-เวลาการทดสอบนี้`;
+            
+            if ( confirm(message) ) {
+                $.ajax({
+                    url: "<?= site_url('manage_round/ajax_delete_round') ?>",
+                    data: {round_id: round_id},
+                    type: "POST",
+                    dataType: "json",
+                    success: function(data) {
+                        if (data.status) {
+                            $("#rs-edit-round").html('');
+                            $("#rs-edit-round").attr('class', 'alert alert-success');
+                            $("#rs-edit-round").html(data.text);
+
+                            generate_datatable();
+                        } else {
+                            $("#rs-edit-round").html('');
+                            $("#rs-edit-round").attr('class', 'alert alert-danger');
+                            $("#rs-edit-round").html(`! ${data.text}`);
+                        }
+                    },
+                    error: function(jhx, status, error) {
+                        console.log(`${jhx}, ${status}, ${error}`);
+                    }
+                });
+
+                return true;
+
+            } else {
+                return false;
+            }
+        });
+
+    });
+</script>
