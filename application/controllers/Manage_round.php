@@ -66,8 +66,7 @@ class Manage_round extends CI_Controller {
         } else {
             $result['status']   = false;
             $result['text']     = 'บันทึกข้อมูลไม่ได้ มีรอบการทดสอบนี้แล้ว';
-        }
-        
+        }        
         echo json_encode($result);
     }
 
@@ -78,9 +77,7 @@ class Manage_round extends CI_Controller {
             $r['enc_id'] = $this->secure_lib->makeSecure($r['row_id'], 'enc');
             $info[] = $r;
         }
-
         $info = ( isset($info) ) ? $info = $info : $info = [];
-
         echo json_encode($info);
     }
 
@@ -99,11 +96,12 @@ class Manage_round extends CI_Controller {
         $y = substr($this->input->post('date'), 6,4) - 543;
 
         $data['date']       = "{$y}-{$m}-{$d}";
-        $data['hour']       = $retVal = (strlen($this->input->post('hour')) == 1) ? "0".$this->input->post('hour') : $this->input->post('hour');
-        $data['minute']     = $retVal = (strlen($this->input->post('minute')) == 1) ? "0".$this->input->post('minute') : $this->input->post('minute');
+        $data['hour']       = (strlen($this->input->post('hour')) == 1) ? "0".$this->input->post('hour') : $this->input->post('hour');
+        $data['minute']     = (strlen($this->input->post('minute')) == 1) ? "0".$this->input->post('minute') : $this->input->post('minute');
         $data['round']      = $this->input->post('round');
         $data['room']       = $this->secure_lib->makeSecure($this->input->post('room'), 'dec');
         $data['round_id']   = $this->secure_lib->makeSecure($this->input->post('round_id'), 'dec');
+        $data['totalSeat'] = $this->input->post('amount_seat');
 
         $update = $this->manage_round_model->update_round($data);
         if ($update) {

@@ -1,24 +1,28 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
-class Main_model extends CI_Model {
+class Main_model extends CI_Model
+{
 
     var $mysql, $oracle;
 
-    public function __construct(Type $var = null) {
+    public function __construct($var = null)
+    {
         $this->mysql  = $this->load->database('mysql', true);
         $this->oracle = $this->load->database('person1', true);
     }
 
-	public function check_avaiable_round() {
+    public function check_avaiable_round()
+    {
         // $query = $this->oracle->query('select * from tab');
         $this->mysql->where('active', 'y');
         $query = $this->mysql->get('ecl2_round');
-        
+
         return $query;
     }
 
-    public function check_member($idp) {
+    public function check_member($idp)
+    {
         $this->oracle->select('a.BIOG_NAME, a.BIOG_IDP, a.BIOG_UNIT, BIOG_UNITNAME, 
             b.REG_USERNAME');
         $this->oracle->join('RTARFMAIL.REGISTER_TAB b', "a.BIOG_IDP = b.REG_CID", "left");
@@ -27,8 +31,9 @@ class Main_model extends CI_Model {
 
         return $query;
     }
-    
-    public function check_registered($idp, $round) {
+
+    public function check_registered($idp, $round)
+    {
         $this->mysql->select('a.idp, a.seat_number, a.name, a.unit_name, a.round_id,
             a.row_id,
             b.date_test, b.time_test,
@@ -40,77 +45,102 @@ class Main_model extends CI_Model {
         $query = $this->mysql->get('ecl2_register a');
         // echo $this->mysql->last_query();
 
-        return $query;        
+        return $query;
     }
 
-    public function list_round_can_register($round) {
-        $this->mysql->select('a.row_id, a.date_test, a.time_test, a.room_id, a.active, a.round,
-            b.room_name,
-            count(*) as total');
-        $this->mysql->join('ecl2_room b', 'a.room_id = b.row_id');
-        $this->mysql->join('ecl2_register c', "a.row_id = c.round_id 
-            and (c.idp is null or c.idp = '')
-            and c.active = 'y'");
-        $this->mysql->group_by('a.row_id');
-        $this->mysql->where('a.active', 'y');
-        $this->mysql->where('a.round', $round);
-        $query = $this->mysql->get('ecl2_round a');
+    public function list_round_can_register($round)
+    {
+        $sql = "SELECT a.row_id, a.date_test, a.time_test, a.room_id, a.active, a.round, a.total_seat, 
+            b.room_name, 
+            (
+                select count(*)
+                from ecl2_register c
+                where c.round_id = a.row_id 
+            ) as total
+            FROM ecl2_round a 
+            LEFT JOIN ecl2_room b 
+                ON a.room_id = b.row_id 
+            WHERE a.active = 'y' 
+            AND a.round = ? 
+            and (
+                select count(*)
+                from ecl2_register c
+                where c.round_id = a.row_id 
+            ) < a.total_seat
+            GROUP BY a.row_id";
+        $query = $this->mysql->query($sql, array($round));
 
         return $query;
     }
 
-    public function regester_member($array) {
-        $field['round']                 = $array['round'];
-        $field['idp']                   = $array['idp'];
-        $field['name']                  = $array['name'];
-        $field['email']                 = $array['email'];
-        $field['tel_number']            = $array['tel_number'];
-        $field['unit_code']             = $array['unit_code'];
-        $field['unit_name']             = $array['unit_name'];
-        $field['time_user_register']    = "{$this->input->ip_address()}#".date("Y-m-d H:i:s");
-
+    public function regester_member($array)
+    {
         $round_id = $array['round_id'];
-        $maxSeat = $this->main_model->check_max_seat($round_id)->row();
+        $maxSeat = $this->check_max_seat($round_id)->row()->total_seat;
 
+        $maxCycle = false;
+        $cycleCheck = 0;
         do {
-            $seat_number = rand(1, $maxSeat->max_seat);
-        } while ($this->main_model->check_dup_seat($seat_number, $round_id)->num_rows() != 1);
-
-        $chk_second = $this->main_model->check_dup_seat($seat_number, $round_id);
-
-        if ($chk_second->num_rows() == 1) { // check dubplicate second
-            $this->mysql->where('seat_number', $seat_number);         
-            $this->mysql->where('round_id', $round_id);         
-            $query['status']        = $this->mysql->update('ecl2_register', $field);
-            $query['seat_number']   = $seat_number;
-            $query['round_id']      = $round_id;
-            
-        } else {
+            $cycleCheck++;
+            $seat_number = rand(1, $maxSeat);
+            $numRow = $this->check_dup_seat($seat_number, $round_id)->num_rows();
+            $isDuplicate = $numRow == 1 ? true : false;
+            if ($cycleCheck > 1000) {
+                $maxCycle = true;
+                break;
+            };
+        } while ($isDuplicate === true && $maxCycle === false);
+        if ($maxCycle) {
             $query['status'] = false;
-        }        
-
+            $query['text'] = 'Register request time out';
+        } else {
+            $chk_second = $this->main_model->check_dup_seat($seat_number, $round_id);
+            if ($chk_second->num_rows() == 0) { // check dubplicate second
+                $field['round']                 = $array['round'];
+                $field['round_id']              = $array['round_id'];
+                $field['idp']                   = $array['idp'];
+                $field['name']                  = $array['name'];
+                $field['email']                 = $array['email'];
+                $field['tel_number']            = $array['tel_number'];
+                $field['unit_code']             = $array['unit_code'];
+                $field['unit_name']             = $array['unit_name'];
+                $field['seat_number']           = $seat_number;
+                $field['confirm']               = 'n';
+                $field['active']                = 'y';
+                $field['time_user_register']    = "{$this->input->ip_address()}#" . date("Y-m-d H:i:s");
+                $query['status']        = $this->mysql->insert('ecl2_register', $field);
+                $query['seat_number']   = $seat_number;
+                $query['round_id']      = $round_id;
+            } else {
+                $query['status'] = false;
+                $query['text'] = 'Registered';
+            }
+        }
         return $query;
     }
 
-    public function check_dup_seat($seat, $round_id) {
+    public function check_dup_seat($seat, $round_id)
+    {
         $this->mysql->where('seat_number', $seat);
         $this->mysql->where('round_id', $round_id);
         $this->mysql->where('active', 'y');
-        $this->mysql->where("(idp is null or idp like '')");
+        $this->mysql->where("idp is not null");
         $query = $this->mysql->get('ecl2_register');
 
         return $query;
     }
 
-    public function check_max_seat($round_id) {
-        $this->mysql->select_max('seat_number', 'max_seat');
-        $this->mysql->where('round_id', $round_id);
-        $query = $this->mysql->get('ecl2_register');
+    public function check_max_seat($round_id)
+    {
+        $this->mysql->select('total_seat');
+        $this->mysql->where('row_id', $round_id);
+        $query = $this->mysql->get('ecl2_round');
 
         return $query;
     }
 
-    public function get_seat_detail_registered($seat, $round_id) {
+    public function get_seat_detail_registered($seat, $round_id)
+    {
         $this->mysql->select('a.name, a.unit_name, a.seat_number, a.idp,
             b.date_test, b.time_test,
             c.room_name');
@@ -124,11 +154,12 @@ class Main_model extends CI_Model {
         return $query;
     }
 
-    public function generate_pdf($obj) {
+    public function generate_pdf($obj)
+    {
         $this->load->library('pdf');
 
-        $y      = substr($obj->date_test, 0,4)+543;
-        $m      = $this->thai_month( substr($obj->date_test, 5,2) );
+        $y      = substr($obj->date_test, 0, 4) + 543;
+        $m      = $this->thai_month(substr($obj->date_test, 5, 2));
         $d      = substr($obj->date_test, 8);
         $date   = "$d $m $y";
 
@@ -138,8 +169,8 @@ class Main_model extends CI_Model {
         $pdf->SetFont('thsarabun', 'B');
         $pdf->AddPage();
 
-        $params = $pdf->serializeTCPDFtagParameters(array($obj->idp, 'C39', '', '', 80, 30, 0.4, array('position'=>'C', 'padding'=>4, 'fgcolor'=>array(0,0,0), 'bgcolor'=>array(255,255,255), 'text'=>true, 'font'=>'thsarabun', 'fontsize'=>16, 'stretchtext'=>1), 'N'));
-        $barCode = '<tcpdf method="write1DBarcode" params="'.$params.'" />';
+        $params = $pdf->serializeTCPDFtagParameters(array($obj->idp, 'C39', '', '', 80, 30, 0.4, array('position' => 'C', 'padding' => 4, 'fgcolor' => array(0, 0, 0), 'bgcolor' => array(255, 255, 255), 'text' => true, 'font' => 'thsarabun', 'fontsize' => 16, 'stretchtext' => 1), 'N'));
+        $barCode = '<tcpdf method="write1DBarcode" params="' . $params . '" />';
 
         $html = <<<EOF
 <div>
@@ -189,14 +220,15 @@ class Main_model extends CI_Model {
 </div>
 EOF;
         $pdf->writeHTML($html);
-        
+
         $filename = "$obj->idp.pdf";
-        $result = $pdf->Output(FCPATH."/assets/PDF_generate/$filename", 'F');
+        $result = $pdf->Output(FCPATH . "/assets/PDF_generate/$filename", 'F');
 
         return $result;
     }
 
-    public function get_email($idp) {
+    public function get_email($idp)
+    {
         $this->oracle->select('REG_CID, REG_FULLNAME, REG_USERNAME');
         $this->oracle->where('REG_CID', $idp);
         $query = $this->oracle->get('RTARFMAIL.REGISTER_TAB');
@@ -204,7 +236,8 @@ EOF;
         return $query;
     }
 
-    public function thai_month($mm) {
+    public function thai_month($mm)
+    {
         $month['01'] = "มกราคม";
         $month['02'] = "กุมภาพันธ์";
         $month['03'] = "มีนาคม";
@@ -221,7 +254,8 @@ EOF;
         return $month[$mm];
     }
 
-    public function confirm_key($array) {
+    public function confirm_key($array)
+    {
         $field['confirm_key']   = $array['key'];
         $field['round_id']      = $array['round_id'];
         $field['seat_number']   = $array['seat_number'];
@@ -231,14 +265,16 @@ EOF;
         return $query;
     }
 
-    public function check_confirm_key($key) {
+    public function check_confirm_key($key)
+    {
         $this->mysql->where('confirm_key', $key);
         $query = $this->mysql->get('ecl2_confirm_key');
 
         return $query;
     }
 
-    public function set_confirm($round_id, $seat_number) {
+    public function set_confirm($round_id, $seat_number)
+    {
         $field['confirm']   = 'y';
         $this->mysql->where('round_id', $round_id);
         $this->mysql->where('seat_number', $seat_number);
@@ -247,7 +283,8 @@ EOF;
         return $query;
     }
 
-    public function get_round_test() {
+    public function get_round_test()
+    {
         $this->mysql->select('distinct(round) as round');
         // $this->mysql->where('active', 'y');
         $this->mysql->order_by('round', 'desc');
@@ -256,10 +293,11 @@ EOF;
         return $query;
     }
 
-    public function check_score($idp) {
+    public function check_score($idp)
+    {
         $md         = date("m-d");
-        $currYear   = date("Y") ."-". $md;
-        $agoYear    = date("Y")-2 ."-". $md;
+        $currYear   = date("Y") . "-" . $md;
+        $agoYear    = date("Y") - 2 . "-" . $md;
 
         $this->mysql->select('a.name, a.unit_name, a.score_test
             ,b.round, b.date_test, b.time_test
@@ -277,28 +315,21 @@ EOF;
         return $query;
     }
 
-    public function cancel_registered($row_id) {
-        $field['idp']           = null;
-        $field['name']          = null;
-        $field['email']         = null;
-        $field['tel_number']    = null;
-        $field['unit_code']     = null;
-        $field['unit_name']     = null;
-        $field['time_update']   = date("Y-m-d H:i:s");
-        $field['user']          = "{$this->input->ip_address()}#". date("Y-m-d H:i:s");
-
+    public function cancel_registered($row_id)
+    {
         $this->mysql->where('row_id', $row_id);
-        $query = $this->mysql->update('ecl2_register', $field);  
+        $query = $this->mysql->delete('ecl2_register');
 
         return $query;
     }
 
-    public function get_register_detail($id) {
+    public function get_register_detail($id)
+    {
         $this->mysql->select('a.idp, a.name, a.unit_name, a.seat_number,
             b.date_test, b.time_test, b.round,
             c.room_name');
         $this->mysql->join('ecl2_round b', 'a.round_id = b.row_id', 'left');
-        $this->mysql->join('ecl2_room c', 'b.room_id = c.row_id', 'left');            
+        $this->mysql->join('ecl2_room c', 'b.room_id = c.row_id', 'left');
         $this->mysql->where('a.row_id', $id);
         $query = $this->mysql->get('ecl2_register a');
         // echo $this->mysql->last_query();
@@ -306,7 +337,8 @@ EOF;
         return $query;
     }
 
-    public function check_opened_round(Type $var = null) {
+    public function check_opened_round($var = null)
+    {
         $this->mysql->where('active', 'y');
         $query = $this->mysql->get('ecl2_round');
 
