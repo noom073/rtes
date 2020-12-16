@@ -94,8 +94,9 @@ class Main_model extends CI_Model
             $query['status'] = false;
             $query['text'] = 'Register request time out';
         } else {
-            $chk_second = $this->main_model->check_dup_seat($seat_number, $round_id);
-            if ($chk_second->num_rows() == 0) { // check dubplicate second
+            $chk_second = $this->check_dup_seat($seat_number, $round_id)->num_rows();
+            $isNotFull = $this->check_register_room_full($array['round_id']);
+            if ($chk_second == 0 && $isNotFull) { // check dubplicate and not full second
                 $field['round']                 = $array['round'];
                 $field['round_id']              = $array['round_id'];
                 $field['idp']                   = $array['idp'];
@@ -117,6 +118,19 @@ class Main_model extends CI_Model
             }
         }
         return $query;
+    }
+
+    public function check_register_room_full($round_id)
+    {
+        $sql = "SELECT count(*) AS amount
+        FROM ecl2_register
+        WHERE round_id = ?";
+        $query = $this->mysql->query($sql, array($round_id));
+
+        $currentAmount = $query->row()->amount;
+        $totalAmount = $this->check_max_seat($round_id)->row()->total_seat;
+        $result = $currentAmount < $totalAmount ? true : false;
+        return $result;
     }
 
     public function check_dup_seat($seat, $round_id)

@@ -118,53 +118,53 @@ class Main extends CI_Controller
         $idp = $data['idp'];
         $num = $this->main_model->check_registered($idp, $data['round_id'])->num_rows();
         if ($num == 0) {  // IF USER NOT REGISTER YET 
-            $insert = $this->main_model->regester_member($data);
-            if ($insert['status']) {
-                $result['data']     = $insert;
-                $result['status']   = true;
-                $result['text']     = 'ลงทะเบียนเรียบร้อย';
+            $isNotFull = $this->main_model->check_register_room_full($data['round_id']);
+            if ($isNotFull) {// IF ROOM NOT FULL
+                $insert = $this->main_model->regester_member($data);
+                if ($insert['status']) { // IF INSERT REGISTER DATA COMPLETE
+                    $result['data'] = $insert;
+                    $data_register  = $this->main_model->get_seat_detail_registered($insert['seat_number'], $insert['round_id'])->row();
+                    $generatePDF    = $this->main_model->generate_pdf($data_register);
+
+                    $file_name = FCPATH . "/assets/PDF_generate/{$data_register->idp}.pdf";
+                    if (file_exists($file_name)) {
+                        $setKeyConfirm['key']           = random_string('alnum', 64);
+                        $setKeyConfirm['seat_number']   = $insert['seat_number'];
+                        $setKeyConfirm['round_id']      = $insert['round_id'];
+                        $this->main_model->confirm_key($setKeyConfirm);
+
+                        $num = $this->main_model->get_email($data_register->idp)->num_rows();
+                        if ($num == 1) {
+                            $email = $this->main_model->get_email($data_register->idp)->row();
+                            $emailAddress = "$email->REG_USERNAME@rtarf.mi.th";
+                            $send = $this->mail_lib->send_register_detail($email->REG_CID, $emailAddress, $setKeyConfirm['key']);
+                        } else {
+                            $send['status'] = false;
+                            $send['text']   = 'ไม่พบ Email ใน RTARF';
+                        }
+                        if ($send['status']) {
+                            $result['status']   = true;
+                            $result['text']     = "ลงทะเบียนเรียบร้อย ส่งบัตรประจำตัวสอบไปยัง RTARF Mail [$emailAddress] แล้ว";
+                        } else {
+                            $result['status']   = false;
+                            $result['text']     = "ลงทะเบียนเรียบร้อย แต่ไม่สามารถส่งบัตรประจำตัวสอบไปยัง RTARF Mail <{$send['text']}>";
+                        }
+                    }
+                    $data['seat_number'] = (isset($insert['seat_number'])) ? $insert['seat_number'] : '*';
+                    $this->write_send_mail_log($result, $data);
+                } else {
+                    $result['data']     = $insert;
+                    $result['status']   = false;
+                    $result['text']     = 'ลงทะเบียนไม่ได้ กรุณาลงทะเบียนอีกครั้ง';
+                }
             } else {
-                $result['data']     = $insert;
                 $result['status']   = false;
-                $result['text']     = 'ลงทะเบียนไม่ได้ กรุณาลงทะเบียนอีกครั้ง';
+                $result['text']     = 'จำนวนที่นั่งเต็ม';
             }
         } else {
             $result['status']   = false;
             $result['text']     = 'มีการลงทะเบียนแล้ว';
         }
-
-        if ($insert['status']) {
-            $data_register  = $this->main_model->get_seat_detail_registered($insert['seat_number'], $insert['round_id'])->row();
-            $generatePDF   = $this->main_model->generate_pdf($data_register);
-
-            $file_name = FCPATH . "/assets/PDF_generate/{$data_register->idp}.pdf";
-            if (file_exists($file_name)) {
-                $setKeyConfirm['key']           = random_string('alnum', 64);
-                $setKeyConfirm['seat_number']   = $insert['seat_number'];
-                $setKeyConfirm['round_id']      = $insert['round_id'];
-                $this->main_model->confirm_key($setKeyConfirm);
-
-                $num = $this->main_model->get_email($data_register->idp)->num_rows();
-                if ($num == 1) {
-                    $email = $this->main_model->get_email($data_register->idp)->row();
-                    $emailAddress = "$email->REG_USERNAME@rtarf.mi.th";
-                    $send = $this->mail_lib->send_register_detail($email->REG_CID, $emailAddress, $setKeyConfirm['key']);
-                } else {
-                    $send['status'] = false;
-                    $send['text']   = 'ไม่พบ Email ใน RTARF';
-                }
-                if ($send['status']) {
-                    $result['status']   = true;
-                    $result['text']     = "ลงทะเบียนเรียบร้อย ส่งบัตรประจำตัวสอบไปยัง RTARF Mail [$emailAddress] แล้ว";
-                } else {
-                    $result['status']   = false;
-                    $result['text']     = "ลงทะเบียนเรียบร้อย แต่ไม่สามารถส่งบัตรประจำตัวสอบไปยัง RTARF Mail <{$send['text']}>";
-                }
-            }
-        }
-
-        $data['seat_number'] = (isset($insert['seat_number'])) ? $insert['seat_number'] : '*';
-        $this->write_send_mail_log($result, $data);
         echo json_encode($result);
     }
 
